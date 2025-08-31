@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 /** ---------------- Icons & Themes ---------------- */
 const ALL_ICONS = [
