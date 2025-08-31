@@ -6,5 +6,5 @@ import react from '@vitejs/plugin-react'
 // For user/organization pages (https://username.github.io), set base: '/'.
 export default defineConfig({
   plugins: [react()],
-  base: '/readme-generator/', // <-- set to '/REPO_NAME/' before deploying
+  base: '/Github_Readme_Generator/', // <-- set to '/REPO_NAME/' before deploying
 })
