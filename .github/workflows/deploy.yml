@@ -20,16 +20,16 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json   # cache keyed to lockfile
 
-      # Try npm ci; if lockfile is out-of-sync, fall back to npm i
-      - name: Install deps (ci with fallback)
-        run: |
-          echo "Node $(node -v); npm $(npm -v)"
-          npm ci || npm i
+      # Strict, deterministic install (requires package-lock.json in repo)
+      - name: Install dependencies (npm ci)
+        run: npm ci
 
-      - name: Build (Vite, with debug)
-        run: npm run build -- --debug
+      - name: Build (Vite)
+        run: npm run build
 
+      # Optional: quick visibility into what got built
       - name: Show dist files
         run: |
           echo "---- dist listing ----"
