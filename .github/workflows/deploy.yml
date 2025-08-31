@@ -15,11 +15,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci || npm i
-      - run: npm run build
+          cache: npm
+
+      # Try npm ci; if lockfile is out-of-sync, fall back to npm i
+      - name: Install deps (ci with fallback)
+        run: |
+          echo "Node $(node -v); npm $(npm -v)"
+          npm ci || npm i
+
+      - name: Build (Vite, with debug)
+        run: npm run build -- --debug
+
+      - name: Show dist files
+        run: |
+          echo "---- dist listing ----"
+          ls -la dist || true
+          echo "---- index.html head ----"
+          sed -n '1,120p' dist/index.html || true
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
