@@ -148,14 +148,12 @@ export default function ReadmeGenerator() {
   const iconObjects = useMemo(() => ALL_ICONS.filter((i) => selectedIcons.includes(i.key)), [selectedIcons]);
 
   /** -------- URL state (Permalinks) -------- */
-  // Load state from URL (if present)
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     const s = search.get("s");
     if (!s) return;
     try {
       const json = JSON.parse(decodeURIComponent(atob(s)));
-      // Only patch known keys
       for (const [k, v] of Object.entries(json)) {
         switch (k) {
           case "displayName": setDisplayName(v); break;
@@ -206,17 +204,26 @@ export default function ReadmeGenerator() {
     return url.toString();
   };
 
-  /** -------- Markdown builder (safe escapes; no stray backslashes) -------- */
+  /** -------- Preview mode (full-page) & rendered HTML -------- */
+  const isPreviewMode = useMemo(
+    () => new URLSearchParams(window.location.search).get("preview") === "1",
+    []
+  );
+
   const md = useMemo(() => {
     const esc = (s) => (s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const hostOnly = (projectsUrl || "").replace(/^https?:\/\/(www\.)?/, "");
+    const typingQuery = typingLines
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => encodeURIComponent(s))
+      .join(";");
 
     const typingBlock = includeTyping
       ? `
 <p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=24&pause=1000&color=F75C7E&center=true&vCenter=true&random=false&width=500&lines=${encodeURIComponent(
-    typingLines
-  )}" />
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=500&size=24&pause=1000&color=F75C7E&center=true&vCenter=true&random=false&width=500&lines=${typingQuery}" />
 </p>`
       : "";
 
@@ -415,6 +422,23 @@ ${visitor}
     statsTheme,
   ]);
 
+  const renderedHtml = useMemo(() => {
+    const html = marked.parse(md, { breaks: true });
+    return DOMPurify.sanitize(html);
+  }, [md]);
+
+  const fullPreviewUrl = useMemo(() => {
+    const url = new URL(buildPermalink());
+    url.searchParams.set("preview", "1");
+    return url.toString();
+  }, [displayName, headline, company, projectsUrl, email, twitter, telegram, instagram, githubUser, gifUrl, aboutLines, includeBadges, includeConnectIcons, includeVisitor, includeTyping, typingLines, selectedIcons, featuredRepos, includeStats, includeTopLangs, includeStreak, includeTrophies, includeActivityGraph, includeSnake, statsTheme]);
+
+  const openFullPreview = () => window.open(fullPreviewUrl, "_blank", "noopener,noreferrer");
+  const copyFullPreviewLink = async () => {
+    await navigator.clipboard.writeText(fullPreviewUrl);
+    alert("Full-page preview link copied 🔗");
+  };
+
   /** -------- Actions -------- */
   const toggleIcon = (key) => {
     setSelectedIcons((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -458,7 +482,6 @@ ${visitor}
     const text = await file.text();
     try {
       const s = JSON.parse(text);
-      // Only set known keys
       setDisplayName(s.displayName ?? displayName);
       setHeadline(s.headline ?? headline);
       setCompany(s.company ?? company);
@@ -491,11 +514,26 @@ ${visitor}
   };
 
   const resetAll = () => {
-    // simple reload is easiest, keeps code compact
     window.location.href = window.location.pathname;
   };
 
-  /** -------- UI -------- */
+  /** -------- Full-page preview (no controls) -------- */
+  if (isPreviewMode) {
+    return (
+      <div className="min-h-screen bg-white text-slate-900">
+        <style>{`.preview-content img{max-width:100%;height:auto} .preview-content{line-height:1.7}`}</style>
+        <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-xl font-semibold">README Preview</h1>
+            <a href={window.location.pathname} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-slate-50">← Back to generator</a>
+          </div>
+          <article className="preview-content" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+        </main>
+      </div>
+    );
+  }
+
+  /** -------- UI (generator) -------- */
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900">
       <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
@@ -643,6 +681,12 @@ ${visitor}
                   <button onClick={downloadFile} className="px-3 py-1.5 rounded-xl bg-slate-900 text-white shadow hover:bg-slate-800">
                     Download
                   </button>
+                  <button onClick={openFullPreview} className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white shadow hover:bg-emerald-700">
+                    Open Full Page
+                  </button>
+                  <button onClick={copyFullPreviewLink} className="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-900 shadow hover:bg-slate-300">
+                    Copy Full Page Link
+                  </button>
                 </div>
               }
             >
@@ -657,7 +701,7 @@ ${visitor}
                   className={`px-2.5 py-1 rounded ${activePreviewTab === "render" ? "bg-indigo-600 text-white" : "bg-slate-200"}`}
                   onClick={() => setActivePreviewTab("render")}
                 >
-                  Rendered (approx)
+                  Rendered
                 </button>
               </div>
 
@@ -666,8 +710,7 @@ ${visitor}
               ) : (
                 <div
                   className="rounded-xl border border-gray-300 bg-white p-4 overflow-auto text-sm"
-                  // This is a light, approximate preview. GitHub may render some markdown differently.
-                  dangerouslySetInnerHTML={{ __html: md }}
+                  dangerouslySetInnerHTML={{ __html: renderedHtml }}
                 />
               )}
 
@@ -680,7 +723,7 @@ ${visitor}
               <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                 <li>Badges and cards are external images; providers may rate-limit briefly.</li>
                 <li>To enable the 🐍 Snake, add a GitHub Action to publish <code>output/snake.svg</code> in your profile repo.</li>
-                <li>Use the “Rendered (approx)” tab as a quick preview. GitHub’s final rendering can differ slightly.</li>
+                <li>Use the “Rendered” tab as a quick preview. GitHub’s final rendering can differ slightly.</li>
               </ul>
             </Section>
           </div>
