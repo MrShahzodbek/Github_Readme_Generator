@@ -1,4 +1,3 @@
-````md
 # GitHub README Generator (React + Vite + Tailwind)
 
 ![pages-deploy](https://img.shields.io/github/actions/workflow/status/MrShahzodbek/Github_Readme_Generator/deploy.yml?branch=main&label=Pages%20deploy)
